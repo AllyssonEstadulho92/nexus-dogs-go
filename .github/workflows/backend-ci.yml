@@ -1,0 +1,25 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - 'Server/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'Server/**'
+      - '.github/workflows/backend-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore Server/NexusDogsGo.Api/NexusDogsGo.Api.csproj
+      - run: dotnet build Server/NexusDogsGo.Api/NexusDogsGo.Api.csproj --configuration Release --no-restore
