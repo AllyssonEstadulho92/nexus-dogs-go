@@ -55,6 +55,7 @@ namespace NexusDogsGo.Gameplay.World
                 var marker = Instantiate(markerPrefab, parent);
                 marker.name = "Spawn_" + spawn.SpawnId;
                 marker.transform.localPosition = GeoSceneProjection.ToWorldOffset(_origin, spawn.Coordinate, worldUnitsPerMeter) + Vector3.up * markerHeight;
+                marker.SetActive(true);
 
                 var binding = marker.GetComponent<DogSpawnMarker>();
                 if (binding != null) binding.Bind(spawn, exploration);
