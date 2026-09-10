@@ -97,8 +97,8 @@ namespace NexusDogsGo.Gameplay.Capture
             {
                 case CaptureAttemptStatus.Captured:
                     SetFeedback(ActiveSpawn.Dog.Name + " foi capturado!");
+                    if (mapController != null) mapController.ConsumeSelectedSpawn();
                     ActiveSpawn = null;
-                    if (mapController != null) mapController.ClearSelectedSpawn();
                     if (GameBootstrap.Instance != null) _ = GameBootstrap.Instance.SaveAsync();
                     if (navigator != null) navigator.Show(ScreenId.Map);
                     break;
