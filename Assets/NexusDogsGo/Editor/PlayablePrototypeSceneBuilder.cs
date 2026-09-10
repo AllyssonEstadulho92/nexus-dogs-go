@@ -51,7 +51,7 @@ namespace NexusDogsGo.EditorTools
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorSceneManager.SaveOpenScenes();
             Selection.activeObject = mapRoot.gameObject;
-            Debug.Log("NEXUS DOGS GO playable vertical slice ready with procedural 3D GPS map.");
+            Debug.Log("NEXUS DOGS GO playable slice ready with detailed 3D world, avatar, companion and wild dogs.");
         }
 
         private static void ConfigureMapUiFor3D(Transform mapRoot)
@@ -59,7 +59,7 @@ namespace NexusDogsGo.EditorTools
             var rootImage = mapRoot.GetComponent<Image>();
             if (rootImage != null)
             {
-                rootImage.color = new Color(0.02f, 0.05f, 0.07f, 0.08f);
+                rootImage.color = new Color(0.02f, 0.05f, 0.07f, 0.04f);
                 rootImage.raycastTarget = false;
             }
 
@@ -69,7 +69,7 @@ namespace NexusDogsGo.EditorTools
                 var panelImage = panel.GetComponent<Image>();
                 if (panelImage != null)
                 {
-                    panelImage.color = new Color(0.025f, 0.07f, 0.09f, 0.18f);
+                    panelImage.color = new Color(0.025f, 0.07f, 0.09f, 0.10f);
                     panelImage.raycastTarget = false;
                 }
             }
@@ -79,12 +79,12 @@ namespace NexusDogsGo.EditorTools
             {
                 var label = labels[i];
                 label.raycastTarget = false;
-                if (label.text.Contains("MAPA REAL"))
+                if (label.text.Contains("MAPA REAL") || label.text.Contains("MAPA 3D"))
                 {
-                    label.text = "MAPA 3D • GPS\nArrasta para rodar • pinça para zoom";
-                    label.fontSize = 28;
+                    label.text = "NEXUS WORLD 3D • GPS\nArrasta para rodar • pinça para zoom";
+                    label.fontSize = 27;
                     var rect = label.rectTransform;
-                    rect.sizeDelta = new Vector2(720f, 100f);
+                    rect.sizeDelta = new Vector2(760f, 96f);
                     rect.anchoredPosition = new Vector2(0f, 565f);
                 }
             }
@@ -98,12 +98,12 @@ namespace NexusDogsGo.EditorTools
             var world = new GameObject("NEXUS_3D_MAP");
             var environment = new GameObject("Environment");
             environment.transform.SetParent(world.transform, false);
-            var spawnRoot = new GameObject("DogSpawns");
+            var spawnRoot = new GameObject("WildDogs");
             spawnRoot.transform.SetParent(world.transform, false);
 
             var player = CreatePlayerMarker(world.transform);
             var companion = CreateCompanionMarker(world.transform, player.transform);
-            companion.transform.localPosition = new Vector3(-0.55f, 0.18f, -0.65f);
+            companion.transform.localPosition = new Vector3(-0.52f, 0.10f, -0.64f);
 
             var renderer = world.AddComponent<Procedural3DMapRenderer>();
             SetObjectReference(renderer, "exploration", exploration);
@@ -113,42 +113,36 @@ namespace NexusDogsGo.EditorTools
             var markerTemplate = CreateDogSpawnTemplate(world.transform);
             var markerManager = world.AddComponent<WorldSpawnMarkerManager>();
             SetObjectReference(markerManager, "exploration", exploration);
+            SetObjectReference(markerManager, "mapRenderer", renderer);
             SetObjectReference(markerManager, "markerRoot", spawnRoot.transform);
             SetObjectReference(markerManager, "markerPrefab", markerTemplate);
 
-            ConfigureMainCamera(player.transform);
-            ConfigureLighting();
+            var camera = ConfigureMainCamera(player.transform);
+            var sun = ConfigureLighting();
+            var atmosphere = world.AddComponent<Map3DWorldAtmosphere>();
+            atmosphere.Configure(sun, camera);
         }
 
         private static GameObject CreatePlayerMarker(Transform parent)
         {
-            var root = new GameObject("PlayerMarker");
+            var root = new GameObject("PlayerAvatar");
             root.transform.SetParent(parent, false);
 
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "PlayerBody";
-            body.transform.SetParent(root.transform, false);
-            body.transform.localPosition = new Vector3(0f, 0.28f, 0f);
-            body.transform.localScale = new Vector3(0.28f, 0.28f, 0.28f);
-            RemoveCollider(body);
-            SetRendererColor(body, NexusTheme.Cyan);
+            CreatePrimitivePart(root.transform, PrimitiveType.Capsule, "Torso", new Vector3(0f, 0.48f, 0f), new Vector3(0.22f, 0.25f, 0.16f), Quaternion.identity, new Color(0.08f, 0.64f, 0.88f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Sphere, "Head", new Vector3(0f, 0.82f, 0f), Vector3.one * 0.23f, Quaternion.identity, new Color(0.76f, 0.56f, 0.42f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Sphere, "Hair", new Vector3(0f, 0.89f, -0.015f), new Vector3(0.23f, 0.12f, 0.23f), Quaternion.identity, new Color(0.08f, 0.07f, 0.06f, 1f));
 
-            var direction = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            direction.name = "Direction";
-            direction.transform.SetParent(root.transform, false);
-            direction.transform.localPosition = new Vector3(0f, 0.18f, 0.34f);
-            direction.transform.localScale = new Vector3(0.08f, 0.06f, 0.42f);
-            RemoveCollider(direction);
-            SetRendererColor(direction, Color.white);
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "LeftLeg", new Vector3(-0.09f, 0.20f, 0f), new Vector3(0.13f, 0.35f, 0.13f), Quaternion.identity, new Color(0.10f, 0.14f, 0.18f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "RightLeg", new Vector3(0.09f, 0.20f, 0f), new Vector3(0.13f, 0.35f, 0.13f), Quaternion.identity, new Color(0.10f, 0.14f, 0.18f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "LeftShoe", new Vector3(-0.09f, 0.035f, 0.055f), new Vector3(0.15f, 0.07f, 0.24f), Quaternion.identity, new Color(0.035f, 0.04f, 0.05f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "RightShoe", new Vector3(0.09f, 0.035f, 0.055f), new Vector3(0.15f, 0.07f, 0.24f), Quaternion.identity, new Color(0.035f, 0.04f, 0.05f, 1f));
 
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ring.name = "AccuracyRing";
-            ring.transform.SetParent(root.transform, false);
-            ring.transform.localPosition = new Vector3(0f, 0.035f, 0f);
-            ring.transform.localScale = new Vector3(1.15f, 0.018f, 1.15f);
-            RemoveCollider(ring);
-            SetRendererColor(ring, new Color(0.10f, 0.75f, 0.90f, 0.33f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "LeftArm", new Vector3(-0.25f, 0.50f, 0f), new Vector3(0.10f, 0.34f, 0.10f), Quaternion.Euler(0f, 0f, -8f), new Color(0.10f, 0.52f, 0.74f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "RightArm", new Vector3(0.25f, 0.50f, 0f), new Vector3(0.10f, 0.34f, 0.10f), Quaternion.Euler(0f, 0f, 8f), new Color(0.10f, 0.52f, 0.74f, 1f));
+            CreatePrimitivePart(root.transform, PrimitiveType.Cube, "Backpack", new Vector3(0f, 0.49f, -0.17f), new Vector3(0.31f, 0.36f, 0.13f), Quaternion.identity, new Color(0.10f, 0.18f, 0.22f, 1f));
 
+            var ring = CreatePrimitivePart(root.transform, PrimitiveType.Cylinder, "GpsAccuracyRing", new Vector3(0f, 0.018f, 0f), new Vector3(0.82f, 0.015f, 0.82f), Quaternion.identity, new Color(0.10f, 0.82f, 0.95f, 0.46f));
+            ring.transform.SetAsFirstSibling();
             return root;
         }
 
@@ -159,104 +153,117 @@ namespace NexusDogsGo.EditorTools
             var follower = root.AddComponent<CompanionFollower>();
             SetObjectReference(follower, "target", target);
 
-            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            body.name = "DogBodyPlaceholder";
-            body.transform.SetParent(root.transform, false);
-            body.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            body.transform.localScale = new Vector3(0.28f, 0.38f, 0.24f);
-            RemoveCollider(body);
-            SetRendererColor(body, new Color(0.92f, 0.72f, 0.26f, 1f));
-
-            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            head.name = "DogHeadPlaceholder";
-            head.transform.SetParent(root.transform, false);
-            head.transform.localPosition = new Vector3(0f, 0.14f, 0.32f);
-            head.transform.localScale = Vector3.one * 0.30f;
-            RemoveCollider(head);
-            SetRendererColor(head, new Color(0.96f, 0.79f, 0.34f, 1f));
+            var visual = new GameObject("Dog");
+            visual.transform.SetParent(root.transform, false);
+            visual.transform.localScale = Vector3.one * 0.92f;
+            CreateDogVisual(visual.transform, new Color(0.86f, 0.61f, 0.25f, 1f), true);
             return root;
         }
 
         private static GameObject CreateDogSpawnTemplate(Transform parent)
         {
-            var root = new GameObject("DogSpawnTemplate", typeof(SphereCollider), typeof(DogSpawnMarker));
+            var root = new GameObject("DogSpawnTemplate", typeof(SphereCollider), typeof(DogSpawnMarker), typeof(WildDogMapActor));
             root.transform.SetParent(parent, false);
             root.transform.localPosition = new Vector3(0f, -100f, 0f);
             var collider = root.GetComponent<SphereCollider>();
-            collider.radius = 0.55f;
+            collider.radius = 0.68f;
+            collider.center = new Vector3(0f, 0.26f, 0f);
 
-            var visual = new GameObject("Visual", typeof(Map3DMarkerEffects));
+            var visual = new GameObject("Visual");
             visual.transform.SetParent(root.transform, false);
 
-            var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            beacon.name = "Beacon";
-            beacon.transform.SetParent(visual.transform, false);
-            beacon.transform.localPosition = new Vector3(0f, 0.38f, 0f);
-            beacon.transform.localScale = new Vector3(0.16f, 0.38f, 0.16f);
-            RemoveCollider(beacon);
-            SetRendererColor(beacon, NexusTheme.Green);
+            var aura = new GameObject("Aura", typeof(Map3DMarkerEffects));
+            aura.transform.SetParent(visual.transform, false);
+            var halo = CreatePrimitivePart(aura.transform, PrimitiveType.Cylinder, "RarityHalo", new Vector3(0f, 0.035f, 0f), new Vector3(0.68f, 0.018f, 0.68f), Quaternion.identity, new Color(0.18f, 0.92f, 0.54f, 1f));
+            var beacon = CreatePrimitivePart(aura.transform, PrimitiveType.Cylinder, "RarityBeacon", new Vector3(0f, 0.30f, 0f), new Vector3(0.035f, 0.30f, 0.035f), Quaternion.identity, new Color(0.18f, 0.92f, 0.54f, 1f));
+            halo.name = "AuraHalo";
+            beacon.name = "AuraBeacon";
 
-            var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            orb.name = "DogEncounter";
-            orb.transform.SetParent(visual.transform, false);
-            orb.transform.localPosition = new Vector3(0f, 0.92f, 0f);
-            orb.transform.localScale = Vector3.one * 0.48f;
-            RemoveCollider(orb);
-            SetRendererColor(orb, NexusTheme.CyanSoft);
-
-            var halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            halo.name = "Halo";
-            halo.transform.SetParent(visual.transform, false);
-            halo.transform.localPosition = new Vector3(0f, 0.08f, 0f);
-            halo.transform.localScale = new Vector3(0.72f, 0.025f, 0.72f);
-            RemoveCollider(halo);
-            SetRendererColor(halo, new Color(0.15f, 0.95f, 0.65f, 0.55f));
+            var dog = new GameObject("Dog");
+            dog.transform.SetParent(visual.transform, false);
+            dog.transform.localPosition = new Vector3(0f, 0.08f, 0f);
+            CreateDogVisual(dog.transform, new Color(0.62f, 0.45f, 0.30f, 1f), false);
 
             root.SetActive(false);
             return root;
         }
 
-        private static void ConfigureMainCamera(Transform target)
+        private static void CreateDogVisual(Transform root, Color bodyColor, bool companion)
+        {
+            var secondary = Color.Lerp(bodyColor, Color.white, 0.34f);
+            var dark = Color.Lerp(bodyColor, Color.black, 0.45f);
+
+            CreatePrimitivePart(root, PrimitiveType.Capsule, "Body", new Vector3(0f, 0.23f, 0f), new Vector3(0.22f, 0.34f, 0.18f), Quaternion.Euler(90f, 0f, 0f), bodyColor);
+            CreatePrimitivePart(root, PrimitiveType.Sphere, "Chest", new Vector3(0f, 0.25f, 0.23f), new Vector3(0.26f, 0.30f, 0.24f), Quaternion.identity, secondary);
+
+            var headPivot = new GameObject("HeadPivot");
+            headPivot.transform.SetParent(root, false);
+            headPivot.transform.localPosition = new Vector3(0f, 0.38f, 0.36f);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Sphere, "Head", Vector3.zero, new Vector3(0.30f, 0.28f, 0.29f), Quaternion.identity, bodyColor);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Sphere, "Muzzle", new Vector3(0f, -0.035f, 0.20f), new Vector3(0.20f, 0.13f, 0.18f), Quaternion.identity, secondary);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Sphere, "Nose", new Vector3(0f, -0.02f, 0.30f), Vector3.one * 0.075f, Quaternion.identity, new Color(0.045f, 0.04f, 0.04f, 1f));
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Cube, "LeftEar", new Vector3(-0.17f, 0.16f, 0.01f), new Vector3(0.11f, 0.22f, 0.08f), Quaternion.Euler(0f, 0f, -24f), dark);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Cube, "RightEar", new Vector3(0.17f, 0.16f, 0.01f), new Vector3(0.11f, 0.22f, 0.08f), Quaternion.Euler(0f, 0f, 24f), dark);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Sphere, "LeftEye", new Vector3(-0.09f, 0.05f, 0.25f), Vector3.one * 0.045f, Quaternion.identity, Color.black);
+            CreatePrimitivePart(headPivot.transform, PrimitiveType.Sphere, "RightEye", new Vector3(0.09f, 0.05f, 0.25f), Vector3.one * 0.045f, Quaternion.identity, Color.black);
+
+            var legColor = Color.Lerp(bodyColor, dark, 0.12f);
+            CreatePrimitivePart(root, PrimitiveType.Cube, "Leg_FL", new Vector3(-0.14f, 0.04f, 0.22f), new Vector3(0.10f, 0.30f, 0.10f), Quaternion.identity, legColor);
+            CreatePrimitivePart(root, PrimitiveType.Cube, "Leg_FR", new Vector3(0.14f, 0.04f, 0.22f), new Vector3(0.10f, 0.30f, 0.10f), Quaternion.identity, legColor);
+            CreatePrimitivePart(root, PrimitiveType.Cube, "Leg_BL", new Vector3(-0.14f, 0.04f, -0.21f), new Vector3(0.10f, 0.30f, 0.10f), Quaternion.identity, legColor);
+            CreatePrimitivePart(root, PrimitiveType.Cube, "Leg_BR", new Vector3(0.14f, 0.04f, -0.21f), new Vector3(0.10f, 0.30f, 0.10f), Quaternion.identity, legColor);
+
+            var tail = CreatePrimitivePart(root, PrimitiveType.Cube, "Tail", new Vector3(0f, 0.31f, -0.42f), new Vector3(0.09f, 0.09f, 0.42f), Quaternion.Euler(-22f, 0f, 0f), bodyColor);
+            tail.transform.localRotation = Quaternion.Euler(-22f, 0f, 18f);
+
+            if (companion)
+            {
+                CreatePrimitivePart(root, PrimitiveType.Cube, "Collar", new Vector3(0f, 0.34f, 0.25f), new Vector3(0.32f, 0.055f, 0.08f), Quaternion.identity, NexusTheme.Cyan);
+            }
+        }
+
+        private static Camera ConfigureMainCamera(Transform target)
         {
             var cameraObject = GameObject.Find("Main Camera");
-            if (cameraObject == null) return;
+            if (cameraObject == null) return null;
 
             var camera = cameraObject.GetComponent<Camera>();
             if (camera != null)
             {
                 camera.orthographic = false;
-                camera.fieldOfView = 48f;
-                camera.nearClipPlane = 0.05f;
-                camera.farClipPlane = 500f;
-                camera.backgroundColor = new Color(0.025f, 0.055f, 0.075f, 1f);
+                camera.fieldOfView = 46f;
+                camera.nearClipPlane = 0.04f;
+                camera.farClipPlane = 650f;
+                camera.backgroundColor = new Color(0.30f, 0.58f, 0.75f, 1f);
             }
 
-            cameraObject.transform.position = new Vector3(-5f, 15f, -16f);
+            cameraObject.transform.position = new Vector3(-4.5f, 12f, -14f);
             var controller = cameraObject.GetComponent<Map3DCameraController>();
             if (controller == null) controller = cameraObject.AddComponent<Map3DCameraController>();
             controller.SetTarget(target);
+            return camera;
         }
 
-        private static void ConfigureLighting()
+        private static Light ConfigureLighting()
         {
             var lightObject = GameObject.Find("Map Sun");
-            if (lightObject == null)
-            {
-                lightObject = new GameObject("Map Sun", typeof(Light));
-                var light = lightObject.GetComponent<Light>();
-                light.type = LightType.Directional;
-                light.intensity = 1.15f;
-                light.color = new Color(0.86f, 0.94f, 1f, 1f);
-                light.shadows = LightShadows.Soft;
-                lightObject.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
-            }
+            if (lightObject == null) lightObject = new GameObject("Map Sun", typeof(Light));
 
-            RenderSettings.ambientLight = new Color(0.22f, 0.30f, 0.34f, 1f);
+            var light = lightObject.GetComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 1.10f;
+            light.color = new Color(1f, 0.94f, 0.82f, 1f);
+            light.shadows = LightShadows.Soft;
+            light.shadowStrength = 0.72f;
+            lightObject.transform.rotation = Quaternion.Euler(52f, -35f, 0f);
+
+            RenderSettings.ambientLight = new Color(0.36f, 0.41f, 0.39f, 1f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(0.025f, 0.055f, 0.075f, 1f);
-            RenderSettings.fogStartDistance = 18f;
-            RenderSettings.fogEndDistance = 58f;
+            RenderSettings.fogColor = new Color(0.42f, 0.58f, 0.65f, 1f);
+            RenderSettings.fogStartDistance = 24f;
+            RenderSettings.fogEndDistance = 84f;
+            return light;
         }
 
         private static void RewireMapEncounterButton(Transform mapRoot, MapExplorationController exploration)
@@ -292,10 +299,23 @@ namespace NexusDogsGo.EditorTools
             SetObjectReference(throwArea.GetComponent<SwipeThrowController>(), "encounter", encounter);
 
             CreateLabel(root, "DESLIZA PARA CIMA PARA LANÇAR", new Vector2(0f, -265f), new Vector2(820f, 55f), 24, NexusTheme.CyanSoft);
-            CreateActionButton(root, "POKÉ BOLA", new Vector2(-260f, -555f), new Vector2(240f, 80f), NexusTheme.Cyan, encounter.SelectPokeBall);
+            CreateActionButton(root, "BOLA", new Vector2(-260f, -555f), new Vector2(240f, 80f), NexusTheme.Cyan, encounter.SelectPokeBall);
             CreateActionButton(root, "SUPER BOLA", new Vector2(0f, -555f), new Vector2(240f, 80f), NexusTheme.SurfaceElevated, encounter.SelectSuperBall);
             CreateActionButton(root, "RAÇÃO", new Vector2(260f, -555f), new Vector2(240f, 80f), NexusTheme.Green, encounter.ToggleFood);
             CreateActionButton(root, "FUGIR", new Vector2(0f, -665f), new Vector2(300f, 75f), NexusTheme.SurfaceElevated, encounter.Flee);
+        }
+
+        private static GameObject CreatePrimitivePart(Transform parent, PrimitiveType type, string objectName, Vector3 position, Vector3 scale, Quaternion rotation, Color color)
+        {
+            var obj = GameObject.CreatePrimitive(type);
+            obj.name = objectName;
+            obj.transform.SetParent(parent, false);
+            obj.transform.localPosition = position;
+            obj.transform.localScale = scale;
+            obj.transform.localRotation = rotation;
+            RemoveCollider(obj);
+            SetRendererColor(obj, color);
+            return obj;
         }
 
         private static void CreateActionButton(Transform parent, string text, Vector2 position, Vector2 size, Color color, UnityEngine.Events.UnityAction action)
@@ -342,6 +362,7 @@ namespace NexusDogsGo.EditorTools
             if (shader == null) shader = Shader.Find("Unlit/Color");
             var material = new Material(shader);
             material.color = color;
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.30f);
             renderer.sharedMaterial = material;
         }
 
