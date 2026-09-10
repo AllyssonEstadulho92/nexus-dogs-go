@@ -4,12 +4,12 @@ NEXUS DOGS GO é um projeto mobile em Unity/C# para Android com exploração por
 
 ## Stack escolhida
 
-- **Motor:** Unity 6 LTS
+- **Motor:** Unity 6 LTS (`6000.0.43f1`)
 - **Cliente:** C# / Unity
-- **Android:** Unity Android Build Support
+- **Android:** Unity Android Build Support, IL2CPP e ARM64
 - **GPS:** `Input.location` encapsulado por `ILocationProvider`
 - **Mapa:** integração por `IMapService` para permitir Mapbox, Google Maps ou outro SDK sem acoplar o gameplay
-- **AR:** contrato `IArService`; AR Foundation entra como adaptador de infraestrutura
+- **AR:** AR Foundation 6.0.6 + ARCore XR Plugin 6.0.6 + XR Plugin Management 4.5.3
 - **Dados:** persistência local JSON no bootstrap; Firestore/SQL através de `IDataStore`
 - **Autenticação:** `IAuthService`, preparado para Firebase Auth ou backend próprio
 - **Servidor:** ASP.NET Core (`Server/NexusDogsGo.Api`)
@@ -35,22 +35,33 @@ O repositório contém a base de domínio e um primeiro vertical slice jogável 
 - persistência local;
 - API backend mínima;
 - testes EditMode para captura, geolocalização e projeção do mundo;
-- CI do backend no GitHub Actions.
+- CI do backend no GitHub Actions;
+- configuração Android reproduzível e comandos de build para APK/AAB.
 
 ## Testar o vertical slice no Unity
 
-1. Instalar uma versão compatível do **Unity 6 LTS** com Android Build Support.
-2. Abrir a raiz deste repositório no Unity Hub.
-3. No Unity, executar **NEXUS DOGS GO > Build Playable Vertical Slice**.
-4. Abrir `Assets/Scenes/Prototype.unity` se não estiver já aberta.
-5. Premir **Play**.
-6. Escolher o cão inicial e abrir o **Mapa**.
-7. No Editor, o GPS é simulado automaticamente para permitir testar sem um telemóvel.
-8. Premir **ENCONTRO** para selecionar um spawn próximo.
-9. No ecrã de captura, usar o botão **CAPTURAR** ou deslizar para cima na zona de lançamento.
-10. Testar Poké Bola/Super Bola, Ração, fuga, consumo de inventário e regresso ao mapa.
+1. Instalar **Unity 6 LTS 6000.0.43f1** com Android Build Support, SDK, NDK e OpenJDK.
+2. Abrir a raiz deste repositório no Unity Hub e aguardar o Package Manager resolver as dependências.
+3. Executar **NEXUS DOGS GO > Build Playable Vertical Slice**.
+4. Executar **NEXUS DOGS GO > Configure > Configure Android Project**.
+5. Executar **NEXUS DOGS GO > Configure > Validate Android Project**.
+6. Abrir `Assets/Scenes/Prototype.unity` se não estiver já aberta e premir **Play**.
+7. Escolher o cão inicial e abrir o **Mapa**.
+8. No Editor, o GPS é simulado automaticamente para permitir testar sem um telemóvel.
+9. Premir **ENCONTRO** para selecionar um spawn próximo.
+10. No ecrã de captura, usar o botão **CAPTURAR** ou deslizar para cima na zona de lançamento.
+11. Testar Poké Bola/Super Bola, Ração, fuga, consumo de inventário e regresso ao mapa.
 
 No Android, o mesmo fluxo usa a localização real do dispositivo e pede a permissão de localização através do `UnityLocationProvider`.
+
+## Build Android
+
+- **Development APK:** `NEXUS DOGS GO > Build > Development APK`
+- **Release AAB:** `NEXUS DOGS GO > Build > Release AAB`
+
+A configuração automática aplica o application ID `com.allyssonestadulho92.nexusdogsgo`, versão `0.2.0`, minimum API 24, target API automático, IL2CPP, ARM64, Portrait e OpenGL ES 3. Os builds são colocados em `Builds/Android/`.
+
+Para AR, depois do Package Manager terminar, ativar o **ARCore loader** em `Edit > Project Settings > XR Plug-in Management > Android`. A funcionalidade AR deve permanecer opcional em relação ao loop principal de GPS/captura.
 
 ## Componentes do vertical slice
 
@@ -61,9 +72,10 @@ No Android, o mesmo fluxo usa a localização real do dispositivo e pede a permi
 - `WorldSpawnMarkerManager`: prepara marcadores de cães no espaço 3D.
 - `CompanionFollower`: movimento base do cão companheiro atrás do jogador.
 - `SimulatedLocationProvider`: localização determinística para desenvolvimento no Editor.
+- `AndroidProjectConfigurator`: centraliza Player Settings, validação e build Android.
 
-## Próximas integrações
+## Serviços externos
 
-Consultar `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` e `docs/PROTOTYPE_MAPPING.md` antes de ligar mapas, Firebase, AR Foundation e multiplayer real.
+Firebase, fornecedor de mapas, assinatura Android e endpoints de produção exigem credenciais/configuração próprias e não são gravados diretamente no repositório. Consultar `docs/ANDROID_CONFIGURATION.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` e `docs/PROTOTYPE_MAPPING.md`.
 
 A imagem do protótipo define a direção de UX/UI, mas os assets finais, nomes, ícones, bolas e restantes elementos visuais devem ser originais ou devidamente licenciados antes de uma publicação comercial.
