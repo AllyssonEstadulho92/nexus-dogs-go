@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -6,65 +5,66 @@ using UnityEngine;
 using UnityEngine.Android;
 #endif
 
-namespace NexusDogsGo.Gameplay.World;
-
-public interface ILocationProvider
+namespace NexusDogsGo.Gameplay.World
 {
-    bool IsRunning { get; }
-    Task<bool> StartAsync(CancellationToken cancellationToken);
-    bool TryGetLocation(out GeoCoordinate coordinate);
-    void Stop();
-}
-
-public sealed class UnityLocationProvider : ILocationProvider
-{
-    public bool IsRunning => Input.location.status == LocationServiceStatus.Running;
-
-    public async Task<bool> StartAsync(CancellationToken cancellationToken)
+    public interface ILocationProvider
     {
-#if UNITY_ANDROID && !UNITY_EDITOR
-        if (!Permission.HasUserAuthorizedPermission(Permission.FineLocation))
+        bool IsRunning { get; }
+        Task<bool> StartAsync(CancellationToken cancellationToken);
+        bool TryGetLocation(out GeoCoordinate coordinate);
+        void Stop();
+    }
+
+    public sealed class UnityLocationProvider : ILocationProvider
+    {
+        public bool IsRunning => Input.location.status == LocationServiceStatus.Running;
+
+        public async Task<bool> StartAsync(CancellationToken cancellationToken)
         {
-            Permission.RequestUserPermission(Permission.FineLocation);
-            var permissionWait = 0;
-            while (!Permission.HasUserAuthorizedPermission(Permission.FineLocation) && permissionWait < 80)
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (!Permission.HasUserAuthorizedPermission(Permission.FineLocation))
+            {
+                Permission.RequestUserPermission(Permission.FineLocation);
+                var permissionWait = 0;
+                while (!Permission.HasUserAuthorizedPermission(Permission.FineLocation) && permissionWait < 80)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    permissionWait++;
+                    await Task.Delay(100, cancellationToken);
+                }
+                if (!Permission.HasUserAuthorizedPermission(Permission.FineLocation)) return false;
+            }
+#endif
+            if (!Input.location.isEnabledByUser) return false;
+            Input.location.Start(5f, 5f);
+
+            var attempts = 0;
+            while (Input.location.status == LocationServiceStatus.Initializing && attempts < 100)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                permissionWait++;
+                attempts++;
                 await Task.Delay(100, cancellationToken);
             }
-            if (!Permission.HasUserAuthorizedPermission(Permission.FineLocation)) return false;
-        }
-#endif
-        if (!Input.location.isEnabledByUser) return false;
-        Input.location.Start(5f, 5f);
 
-        var attempts = 0;
-        while (Input.location.status == LocationServiceStatus.Initializing && attempts < 100)
+            return Input.location.status == LocationServiceStatus.Running;
+        }
+
+        public bool TryGetLocation(out GeoCoordinate coordinate)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            attempts++;
-            await Task.Delay(100, cancellationToken);
+            if (!IsRunning)
+            {
+                coordinate = default;
+                return false;
+            }
+
+            var data = Input.location.lastData;
+            coordinate = new GeoCoordinate(data.latitude, data.longitude);
+            return true;
         }
 
-        return Input.location.status == LocationServiceStatus.Running;
-    }
-
-    public bool TryGetLocation(out GeoCoordinate coordinate)
-    {
-        if (!IsRunning)
+        public void Stop()
         {
-            coordinate = default;
-            return false;
+            if (Input.location.status == LocationServiceStatus.Running) Input.location.Stop();
         }
-
-        var data = Input.location.lastData;
-        coordinate = new GeoCoordinate(data.latitude, data.longitude);
-        return true;
-    }
-
-    public void Stop()
-    {
-        if (Input.location.status == LocationServiceStatus.Running) Input.location.Stop();
     }
 }
