@@ -16,7 +16,7 @@ namespace NexusDogsGo.Core
         public GameStateMachine StateMachine { get; } = new GameStateMachine();
         public MissionTracker Missions { get; private set; } = new MissionTracker();
         public DogSpawnService Spawns { get; private set; } = new DogSpawnService();
-        public ILocationProvider Location { get; private set; } = new UnityLocationProvider();
+        public ILocationProvider Location { get; private set; }
         public IAuthService Auth { get; private set; } = new LocalGuestAuthService();
         public IDataStore DataStore { get; private set; }
 
@@ -34,6 +34,7 @@ namespace NexusDogsGo.Core
             DontDestroyOnLoad(gameObject);
             _lifetime = new CancellationTokenSource();
             DataStore = new JsonFileDataStore();
+            Location = CreateLocationProvider();
 
             try
             {
@@ -46,6 +47,15 @@ namespace NexusDogsGo.Core
             {
                 Debug.LogException(exception);
             }
+        }
+
+        private static ILocationProvider CreateLocationProvider()
+        {
+#if UNITY_EDITOR
+            return new SimulatedLocationProvider();
+#else
+            return new UnityLocationProvider();
+#endif
         }
 
         private async Task InitializeAsync(CancellationToken cancellationToken)
@@ -74,7 +84,7 @@ namespace NexusDogsGo.Core
         private void OnApplicationQuit()
         {
             if (!string.IsNullOrWhiteSpace(Profile.PlayerId) && DataStore != null) _ = SaveAsync();
-            Location.Stop();
+            if (Location != null) Location.Stop();
             if (_lifetime != null)
             {
                 _lifetime.Cancel();
