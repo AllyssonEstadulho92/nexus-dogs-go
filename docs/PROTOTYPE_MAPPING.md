@@ -16,6 +16,10 @@ O protótipo fornecido define onze experiências principais. Esta tabela funcion
 | Eventos | `Events` | raids, comunidade e temporadas |
 | Câmara AR | `Ar` | AR Foundation e colocação do cão |
 
+## Protótipo executável
+
+O comando **NEXUS DOGS GO > Build Prototype Scene** cria todos os 11 ecrãs e liga os principais fluxos de navegação. A cena gerada é deliberadamente um wireframe funcional: serve para testar arquitetura, navegação e proporções antes de importar modelos 3D, imagens finais, mapas e SDKs externos.
+
 ## Linguagem visual
 
 - fundo azul-marinho profundo;

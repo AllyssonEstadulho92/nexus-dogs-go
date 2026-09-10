@@ -14,6 +14,37 @@ namespace NexusDogsGo.Gameplay.World
         public DateTimeOffset ExpiresAt;
     }
 
+    internal struct DeterministicRandom
+    {
+        private uint _state;
+
+        public DeterministicRandom(uint seed)
+        {
+            _state = seed == 0 ? 0x6D2B79F5u : seed;
+        }
+
+        public uint NextUInt()
+        {
+            var x = _state;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            _state = x;
+            return x;
+        }
+
+        public double NextDouble()
+        {
+            return (NextUInt() & 0x00FFFFFFu) / 16777216d;
+        }
+
+        public int NextInt(int minInclusive, int maxExclusive)
+        {
+            if (maxExclusive <= minInclusive) return minInclusive;
+            return minInclusive + (int)(NextDouble() * (maxExclusive - minInclusive));
+        }
+    }
+
     public sealed class DogSpawnService
     {
         private readonly int _worldSeed;
@@ -28,8 +59,7 @@ namespace NexusDogsGo.Gameplay.World
             count = Math.Max(1, Math.Min(25, count));
             radiusMeters = Math.Max(50d, Math.Min(2000d, radiusMeters));
             var bucket = now.ToUnixTimeSeconds() / 900;
-            var seed = HashCode.Combine(_worldSeed, bucket, Math.Round(player.Latitude, 3), Math.Round(player.Longitude, 3));
-            var random = new Random(seed);
+            var random = new DeterministicRandom(BuildStableSeed(_worldSeed, bucket, player));
             var result = new List<DogSpawn>(count);
 
             for (var i = 0; i < count; i++)
@@ -38,8 +68,8 @@ namespace NexusDogsGo.Gameplay.World
                 var distance = 35d + random.NextDouble() * (radiusMeters - 35d);
                 var north = Math.Cos(angle) * distance;
                 var east = Math.Sin(angle) * distance;
-                var dog = PickDog(random);
-                var level = random.Next(1, 21);
+                var dog = PickDog(ref random);
+                var level = random.NextInt(1, 21);
                 result.Add(new DogSpawn
                 {
                     SpawnId = bucket + "-" + i + "-" + dog.Id,
@@ -53,7 +83,31 @@ namespace NexusDogsGo.Gameplay.World
             return result;
         }
 
-        private static DogDefinition PickDog(Random random)
+        private static uint BuildStableSeed(int worldSeed, long bucket, in GeoCoordinate player)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                hash = Mix(hash, (uint)worldSeed);
+                hash = Mix(hash, (uint)bucket);
+                hash = Mix(hash, (uint)(bucket >> 32));
+                hash = Mix(hash, (uint)Math.Round((player.Latitude + 90d) * 10000d));
+                hash = Mix(hash, (uint)Math.Round((player.Longitude + 180d) * 10000d));
+                return hash;
+            }
+        }
+
+        private static uint Mix(uint hash, uint value)
+        {
+            unchecked
+            {
+                hash ^= value;
+                hash *= 16777619u;
+                return hash;
+            }
+        }
+
+        private static DogDefinition PickDog(ref DeterministicRandom random)
         {
             var roll = random.NextDouble();
             DogRarity rarity;
@@ -68,8 +122,8 @@ namespace NexusDogsGo.Gameplay.World
                 if (dog.Rarity == rarity) candidates.Add(dog);
             }
 
-            if (candidates.Count == 0) return StarterCatalog.Dogs[random.Next(StarterCatalog.Dogs.Count)];
-            return candidates[random.Next(candidates.Count)];
+            if (candidates.Count == 0) return StarterCatalog.Dogs[random.NextInt(0, StarterCatalog.Dogs.Count)];
+            return candidates[random.NextInt(0, candidates.Count)];
         }
     }
 }
