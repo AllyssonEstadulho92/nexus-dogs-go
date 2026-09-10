@@ -6,33 +6,53 @@ namespace NexusDogsGo.Gameplay.World
     public sealed class WorldSpawnMarkerManager : MonoBehaviour
     {
         [SerializeField] private MapExplorationController exploration;
+        [SerializeField] private Procedural3DMapRenderer mapRenderer;
         [SerializeField] private Transform markerRoot;
         [SerializeField] private GameObject markerPrefab;
         [SerializeField, Min(0.001f)] private float worldUnitsPerMeter = 0.04f;
-        [SerializeField, Min(0f)] private float markerHeight = 0.25f;
+        [SerializeField, Min(0f)] private float markerHeight = 0.08f;
 
         private readonly List<GameObject> _markers = new List<GameObject>();
-        private GeoCoordinate _origin;
-        private bool _hasOrigin;
+        private GeoCoordinate _fallbackOrigin;
+        private bool _hasFallbackOrigin;
 
         private void OnEnable()
         {
-            if (exploration == null) return;
-            exploration.LocationChanged += HandleLocation;
-            exploration.SpawnsChanged += HandleSpawns;
+            if (exploration != null)
+            {
+                exploration.LocationChanged += HandleLocation;
+                exploration.SpawnsChanged += HandleSpawns;
+            }
+
+            if (mapRenderer != null) mapRenderer.WorldRebuilt += HandleWorldRebuilt;
         }
 
         private void OnDisable()
         {
-            if (exploration == null) return;
-            exploration.LocationChanged -= HandleLocation;
-            exploration.SpawnsChanged -= HandleSpawns;
+            if (exploration != null)
+            {
+                exploration.LocationChanged -= HandleLocation;
+                exploration.SpawnsChanged -= HandleSpawns;
+            }
+
+            if (mapRenderer != null) mapRenderer.WorldRebuilt -= HandleWorldRebuilt;
+        }
+
+        private void HandleWorldRebuilt(GeoCoordinate origin)
+        {
+            _fallbackOrigin = origin;
+            _hasFallbackOrigin = true;
+            Reposition(exploration != null ? exploration.CurrentSpawns : null);
         }
 
         private void HandleLocation(GeoCoordinate coordinate)
         {
-            _origin = coordinate;
-            _hasOrigin = true;
+            if (mapRenderer == null || !mapRenderer.HasOrigin)
+            {
+                _fallbackOrigin = coordinate;
+                _hasFallbackOrigin = true;
+            }
+
             Reposition(exploration != null ? exploration.CurrentSpawns : null);
         }
 
@@ -44,7 +64,7 @@ namespace NexusDogsGo.Gameplay.World
         private void Rebuild(IReadOnlyList<DogSpawn> spawns)
         {
             Clear();
-            if (!_hasOrigin || markerPrefab == null || spawns == null) return;
+            if (markerPrefab == null || spawns == null || !CanProject()) return;
 
             var parent = markerRoot != null ? markerRoot : transform;
             for (var i = 0; i < spawns.Count; i++)
@@ -53,19 +73,28 @@ namespace NexusDogsGo.Gameplay.World
                 if (spawn == null || spawn.Dog == null) continue;
 
                 var marker = Instantiate(markerPrefab, parent);
-                marker.name = "Spawn_" + spawn.SpawnId;
-                marker.transform.localPosition = GeoSceneProjection.ToWorldOffset(_origin, spawn.Coordinate, worldUnitsPerMeter) + Vector3.up * markerHeight;
+                marker.name = "WildDog_" + spawn.SpawnId;
+                marker.transform.localPosition = Project(spawn.Coordinate) + Vector3.up * markerHeight;
                 marker.SetActive(true);
 
                 var binding = marker.GetComponent<DogSpawnMarker>();
                 if (binding != null) binding.Bind(spawn, exploration);
+
+                var actor = marker.GetComponent<WildDogMapActor>();
+                if (actor != null) actor.Bind(spawn);
+
                 _markers.Add(marker);
             }
         }
 
         private void Reposition(IReadOnlyList<DogSpawn> spawns)
         {
-            if (!_hasOrigin || spawns == null || _markers.Count != spawns.Count)
+            if (!CanProject() || spawns == null)
+            {
+                return;
+            }
+
+            if (_markers.Count != spawns.Count)
             {
                 Rebuild(spawns);
                 return;
@@ -76,8 +105,19 @@ namespace NexusDogsGo.Gameplay.World
                 var marker = _markers[i];
                 var spawn = spawns[i];
                 if (marker == null || spawn == null) continue;
-                marker.transform.localPosition = GeoSceneProjection.ToWorldOffset(_origin, spawn.Coordinate, worldUnitsPerMeter) + Vector3.up * markerHeight;
+                marker.transform.localPosition = Project(spawn.Coordinate) + Vector3.up * markerHeight;
             }
+        }
+
+        private bool CanProject()
+        {
+            return (mapRenderer != null && mapRenderer.HasOrigin) || _hasFallbackOrigin;
+        }
+
+        private Vector3 Project(in GeoCoordinate coordinate)
+        {
+            if (mapRenderer != null && mapRenderer.HasOrigin) return mapRenderer.Project(coordinate);
+            return GeoSceneProjection.ToWorldOffset(_fallbackOrigin, coordinate, worldUnitsPerMeter);
         }
 
         private void Clear()
