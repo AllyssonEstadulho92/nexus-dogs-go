@@ -8,7 +8,7 @@ NEXUS DOGS GO é um projeto mobile em Unity/C# para Android com exploração por
 - **Cliente:** C# / Unity
 - **Android:** Unity Android Build Support, IL2CPP e ARM64
 - **GPS:** `Input.location` encapsulado por `ILocationProvider`
-- **Mapa:** integração por `IMapService` para permitir Mapbox, Google Maps ou outro SDK sem acoplar o gameplay
+- **Mapa:** mundo 3D procedural desacoplado por `IMapService`, preparado para substituir/adicionar um fornecedor cartográfico real posteriormente
 - **AR:** AR Foundation 6.0.6 + ARCore XR Plugin 6.0.6 + XR Plugin Management 4.5.3
 - **Dados:** persistência local JSON no bootstrap; Firestore/SQL através de `IDataStore`
 - **Autenticação:** `IAuthService`, preparado para Firebase Auth ou backend próprio
@@ -29,7 +29,12 @@ O repositório contém a base de domínio e um primeiro vertical slice jogável 
 - inventário e consumo de itens;
 - missões e progresso;
 - batalha por turnos;
-- companheiro 3D com comportamento de seguimento;
+- avatar 3D do jogador com deslocação suavizada a partir do GPS;
+- cão companheiro 3D com seguimento;
+- cães selvagens 3D com animação idle, movimento de cabeça/cauda e aura por raridade;
+- cidade 3D procedural com estradas, marcações, passeios, edifícios, janelas, telhados, parques, árvores, praças, água, bancos, iluminação urbana e hubs;
+- ciclo visual dia/noite baseado na hora local do dispositivo;
+- câmara móvel com rotação, zoom, follow e look-ahead;
 - projeção de coordenadas GPS para posições no mundo Unity;
 - navegação entre os ecrãs principais do protótipo;
 - persistência local;
@@ -48,9 +53,10 @@ O repositório contém a base de domínio e um primeiro vertical slice jogável 
 6. Abrir `Assets/Scenes/Prototype.unity` se não estiver já aberta e premir **Play**.
 7. Escolher o cão inicial e abrir o **Mapa**.
 8. No Editor, o GPS é simulado automaticamente para permitir testar sem um telemóvel.
-9. Premir **ENCONTRO** para selecionar um spawn próximo.
-10. No ecrã de captura, usar o botão **CAPTURAR** ou deslizar para cima na zona de lançamento.
-11. Testar Poké Bola/Super Bola, Ração, fuga, consumo de inventário e regresso ao mapa.
+9. Rodar o mapa por arrasto e usar pinça/roda para zoom.
+10. Premir **ENCONTRO** ou selecionar um cão selvagem no mapa.
+11. No ecrã de captura, usar o botão **CAPTURAR** ou deslizar para cima na zona de lançamento.
+12. Testar Bola/Super Bola, Ração, fuga, consumo de inventário e regresso ao mapa.
 
 No Android, o mesmo fluxo usa a localização real do dispositivo e pede a permissão de localização através do `UnityLocationProvider`.
 
@@ -66,10 +72,14 @@ Para AR, depois do Package Manager terminar, ativar o **ARCore loader** em `Edit
 ## Componentes do vertical slice
 
 - `MapExplorationController`: ciclo de GPS, atualização da posição, spawns e seleção de encontro.
+- `Procedural3DMapRenderer`: constrói e atualiza o mundo urbano 3D procedural.
+- `Map3DWorldAtmosphere`: sincroniza luz, céu, nevoeiro e ambiente com a hora local.
+- `Map3DCameraController`: rotação, zoom, follow e look-ahead do mapa.
+- `WildDogMapActor`: aparência, raridade e animação procedural dos cães no mundo.
+- `WorldSpawnMarkerManager`: posiciona cães selvagens usando a mesma origem geográfica do mundo 3D.
 - `CaptureEncounterController`: estado do encontro, escolha de item, captura, recompensa e persistência.
 - `SwipeThrowController`: converte o gesto mobile em `Normal`, `Nice`, `Great` ou `Excellent`.
 - `GeoSceneProjection`: converte diferenças GPS em offsets do mundo Unity.
-- `WorldSpawnMarkerManager`: prepara marcadores de cães no espaço 3D.
 - `CompanionFollower`: movimento base do cão companheiro atrás do jogador.
 - `SimulatedLocationProvider`: localização determinística para desenvolvimento no Editor.
 - `AndroidProjectConfigurator`: centraliza Player Settings, validação e build Android.
@@ -78,4 +88,4 @@ Para AR, depois do Package Manager terminar, ativar o **ARCore loader** em `Edit
 
 Firebase, fornecedor de mapas, assinatura Android e endpoints de produção exigem credenciais/configuração próprias e não são gravados diretamente no repositório. Consultar `docs/ANDROID_CONFIGURATION.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` e `docs/PROTOTYPE_MAPPING.md`.
 
-A imagem do protótipo define a direção de UX/UI, mas os assets finais, nomes, ícones, bolas e restantes elementos visuais devem ser originais ou devidamente licenciados antes de uma publicação comercial.
+A direção do jogo pode atingir um nível elevado de acabamento sem copiar personagens, interface, marcas, ícones, sons ou assets de outras franquias. Os modelos 3D finais e restantes assets de produção devem ser originais ou devidamente licenciados.
