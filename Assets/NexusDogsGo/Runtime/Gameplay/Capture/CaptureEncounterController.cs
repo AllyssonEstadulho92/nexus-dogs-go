@@ -26,7 +26,11 @@ namespace NexusDogsGo.Gameplay.Capture
 
         private void OnEnable()
         {
-            if (mapController != null) mapController.SpawnSelected += BeginEncounter;
+            if (mapController != null)
+            {
+                mapController.SpawnSelected += BeginEncounter;
+                if (mapController.SelectedSpawn != null) BeginEncounter(mapController.SelectedSpawn);
+            }
             EnsureService();
         }
 
@@ -94,6 +98,7 @@ namespace NexusDogsGo.Gameplay.Capture
                 case CaptureAttemptStatus.Captured:
                     SetFeedback(ActiveSpawn.Dog.Name + " foi capturado!");
                     ActiveSpawn = null;
+                    if (mapController != null) mapController.ClearSelectedSpawn();
                     if (GameBootstrap.Instance != null) _ = GameBootstrap.Instance.SaveAsync();
                     if (navigator != null) navigator.Show(ScreenId.Map);
                     break;
@@ -116,6 +121,7 @@ namespace NexusDogsGo.Gameplay.Capture
         public void Flee()
         {
             ActiveSpawn = null;
+            if (mapController != null) mapController.ClearSelectedSpawn();
             EncounterChanged?.Invoke(null);
             if (navigator != null) navigator.Show(ScreenId.Map);
         }
