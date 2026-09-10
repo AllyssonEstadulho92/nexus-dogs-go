@@ -84,6 +84,10 @@ Para AR, depois do Package Manager terminar, ativar o **ARCore loader** em `Edit
 - `SimulatedLocationProvider`: localização determinística para desenvolvimento no Editor.
 - `AndroidProjectConfigurator`: centraliza Player Settings, validação e build Android.
 
+## Documentação do mapa 3D
+
+Consultar `docs/MAP3D_WORLD.md` para a composição do mundo, elementos visuais implementados, fluxo de teste e limites atuais.
+
 ## Serviços externos
 
 Firebase, fornecedor de mapas, assinatura Android e endpoints de produção exigem credenciais/configuração próprias e não são gravados diretamente no repositório. Consultar `docs/ANDROID_CONFIGURATION.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` e `docs/PROTOTYPE_MAPPING.md`.
