@@ -28,6 +28,7 @@ namespace NexusDogsGo.Gameplay.World
         public bool LocationReady { get; private set; }
         public GeoCoordinate PlayerCoordinate { get; private set; }
         public IReadOnlyList<DogSpawn> CurrentSpawns => _currentSpawns;
+        public DogSpawn SelectedSpawn { get; private set; }
 
         public event Action<GeoCoordinate> LocationChanged;
         public event Action<IReadOnlyList<DogSpawn>> SpawnsChanged;
@@ -126,6 +127,11 @@ namespace NexusDogsGo.Gameplay.World
             SpawnsChanged?.Invoke(_currentSpawns);
         }
 
+        public void SelectFirstSpawn()
+        {
+            if (_currentSpawns.Count > 0) SelectSpawn(_currentSpawns[0]);
+        }
+
         public void SelectSpawnById(string spawnId)
         {
             if (string.IsNullOrWhiteSpace(spawnId)) return;
@@ -142,8 +148,14 @@ namespace NexusDogsGo.Gameplay.World
         public void SelectSpawn(DogSpawn spawn)
         {
             if (spawn == null || spawn.Dog == null) return;
+            SelectedSpawn = spawn;
             SpawnSelected?.Invoke(spawn);
             if (navigator != null) navigator.Show(ScreenId.Capture);
+        }
+
+        public void ClearSelectedSpawn()
+        {
+            SelectedSpawn = null;
         }
 
         private void SetStatus(string message)
