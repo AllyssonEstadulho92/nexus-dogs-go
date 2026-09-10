@@ -18,12 +18,13 @@ namespace NexusDogsGo.Gameplay.World
         [SerializeField, Min(50f)] private float spawnRadiusMeters = 450f;
         [SerializeField] private float mapZoom = 16f;
 
+        private readonly HashSet<string> _consumedSpawnIds = new HashSet<string>(StringComparer.Ordinal);
         private CancellationTokenSource _lifetime;
         private IMapService _mapService;
         private GeoCoordinate _lastSpawnOrigin;
         private bool _hasSpawnOrigin;
         private float _nextRefreshTime;
-        private IReadOnlyList<DogSpawn> _currentSpawns = Array.Empty<DogSpawn>();
+        private List<DogSpawn> _currentSpawns = new List<DogSpawn>();
 
         public bool LocationReady { get; private set; }
         public GeoCoordinate PlayerCoordinate { get; private set; }
@@ -114,22 +115,29 @@ namespace NexusDogsGo.Gameplay.World
             var expired = _currentSpawns.Count == 0 || _currentSpawns[0].ExpiresAt <= DateTimeOffset.UtcNow;
             if (!forceSpawns && !movedEnough && !expired) return;
 
-            _currentSpawns = bootstrap.Spawns.GenerateNearby(
+            var generated = bootstrap.Spawns.GenerateNearby(
                 coordinate,
                 DateTimeOffset.UtcNow,
                 nearbySpawnCount,
                 spawnRadiusMeters);
 
+            _currentSpawns = new List<DogSpawn>(generated.Count);
+            for (var i = 0; i < generated.Count; i++)
+            {
+                var spawn = generated[i];
+                if (spawn != null && !_consumedSpawnIds.Contains(spawn.SpawnId)) _currentSpawns.Add(spawn);
+            }
+
             _lastSpawnOrigin = coordinate;
             _hasSpawnOrigin = true;
-            _mapService?.SetDogSpawns(_currentSpawns);
+            PublishSpawns();
             _mapService?.Focus(coordinate, mapZoom);
-            SpawnsChanged?.Invoke(_currentSpawns);
         }
 
         public void SelectFirstSpawn()
         {
             if (_currentSpawns.Count > 0) SelectSpawn(_currentSpawns[0]);
+            else SetStatus("Não existem cães disponíveis neste ponto neste momento.");
         }
 
         public void SelectSpawnById(string spawnId)
@@ -147,15 +155,34 @@ namespace NexusDogsGo.Gameplay.World
 
         public void SelectSpawn(DogSpawn spawn)
         {
-            if (spawn == null || spawn.Dog == null) return;
+            if (spawn == null || spawn.Dog == null || _consumedSpawnIds.Contains(spawn.SpawnId)) return;
             SelectedSpawn = spawn;
             SpawnSelected?.Invoke(spawn);
             if (navigator != null) navigator.Show(ScreenId.Capture);
         }
 
+        public void ConsumeSelectedSpawn()
+        {
+            if (SelectedSpawn == null) return;
+            _consumedSpawnIds.Add(SelectedSpawn.SpawnId);
+            for (var i = _currentSpawns.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(_currentSpawns[i].SpawnId, SelectedSpawn.SpawnId, StringComparison.Ordinal))
+                    _currentSpawns.RemoveAt(i);
+            }
+            SelectedSpawn = null;
+            PublishSpawns();
+        }
+
         public void ClearSelectedSpawn()
         {
             SelectedSpawn = null;
+        }
+
+        private void PublishSpawns()
+        {
+            _mapService?.SetDogSpawns(_currentSpawns);
+            SpawnsChanged?.Invoke(_currentSpawns);
         }
 
         private void SetStatus(string message)
